@@ -1,0 +1,26 @@
+{
+  "name": "qldb-kms",
+  "version": "1.0.0",
+  "description": "Demo application for QLDB using CMK KMS",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Matt Lewis",
+  "license": "MIT",
+  "dependencies": {
+    "@dazn/lambda-powertools-logger": "^1.28.1",
+    "amazon-qldb-driver-nodejs": "^2.2.0",
+    "aws-sdk": "^2.958.0",
+    "aws-xray-sdk-core": "^3.3.3",
+    "ion-js": "^4.2.1",
+    "jsbi": "^3.1.6"
+  },
+  "devDependencies": {
+    "artillery": "^1.7.7",
+    "faker": "^5.5.3",
+    "serverless-esbuild": "^1.16.1",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-pseudo-parameters": "^2.6.0"
+  }
+}

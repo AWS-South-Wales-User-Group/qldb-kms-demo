@@ -1,0 +1,22 @@
+config:
+    target: "https://rs05r40x4c.execute-api.eu-west-2.amazonaws.com/demo/"
+    phases:
+      - duration: 30
+        arrivalRate: 5
+    processor: "./createRecord.js"
+  
+scenarios:
+    - flow:
+        # call createTestPerson() to create the govid, firstName, lastName, DOB, type and address variables
+        - function: "createNewRecord"
+        - post:
+            url: "/record"
+            json:
+                id: "{{ id }}"
+                firstName: "{{ firstName }}"
+                lastName: "{{ lastName }}"
+                email: "{{ email }}"
+                street: "{{ street }}"
+                postcode: "{{ postcode }}"
+        # Print the data we're sending while debugging the script:
+        - log: "Sent a request to /record with {{ id }}, {{ firstName }}, {{ lastName }}, {{ email }}, {{ street }}, {{ postcode }}"

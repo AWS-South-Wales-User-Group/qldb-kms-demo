@@ -1,0 +1,188 @@
+service: qldb-kms
+
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  memorySize: 512
+  timeout: 30
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-2
+  logRetentionInDays: 7 # Set the default RetentionInDays for a CloudWatch LogGroup
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED	: "1"
+    LEDGER_NAME: qldb-kms-ledger-${self:provider.stage}
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-pseudo-parameters
+  - serverless-esbuild
+
+functions:
+  createRecord:
+    name: create-record-${self:provider.stage}
+    handler: functions/create-record.handler
+    events:
+      - http:
+          path: /record
+          method: post
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - qldb:PartiQLInsert
+        Resource: 
+          - arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}/*
+      - Effect: Allow
+        Action: 
+          - qldb:SendCommand
+        Resource: arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
+      - Effect: Allow
+        Action: 
+          - kms:Decrypt
+        Resource:
+          - arn:aws:kms:#{AWS::Region}:#{AWS::AccountId}:alias/qldb-kms-${self:provider.stage}
+
+
+  getLicence:
+    name: get-record-${self:provider.stage}
+    handler: functions/get-record.handler
+    events:
+      - http:
+          path: /record/{id}
+          method: get
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - qldb:PartiQLSelect
+        Resource: 
+          - arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}/*
+      - Effect: Allow
+        Action: 
+          - qldb:SendCommand
+        Resource: arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
+      - Effect: Allow
+        Action: 
+          - kms:Decrypt
+        Resource:
+          - arn:aws:kms:#{AWS::Region}:#{AWS::AccountId}:alias/qldb-kms-${self:provider.stage}
+
+
+resources:
+  Resources:
+
+    QLDBKMSLedger:
+      Type: AWS::QLDB::Ledger
+      Properties:
+        Name: qldb-kms-ledger-${self:provider.stage}
+        DeletionProtection: false
+        KmsKey: !Ref QLDBKMSAlias
+        PermissionsMode: STANDARD
+        Tags:
+          - 
+            Key: name
+            Value: qldb-kms-ledger
+
+    QLDBKMSAlias:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: 'alias/qldb-kms-${self:provider.stage}'
+        TargetKeyId: !GetAtt QLDBKMSKey.Arn
+
+
+    QLDBKMSKey:
+      Type: AWS::KMS::Key
+      Properties: 
+        Description: 'QLDB Ledger CMK'
+        Enabled: true
+        EnableKeyRotation: true
+        KeySpec: 'SYMMETRIC_DEFAULT'
+        PendingWindowInDays: 7
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: qldb-cmk-${self:provider.stage}
+          Statement:
+          - Sid: 'Allow administration of the key'
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::${aws:accountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          - Sid: 'Allow access to principals authorized to use Amazon QLDB'
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:DescribeKey
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
+                'kms:CallerAccount': '${aws:accountId}'
+              
+    QLDBKMSRotateKey:
+      Type: AWS::KMS::Key
+      Properties: 
+        Description: 'QLDB Ledger Rotate CMK'
+        Enabled: true
+        EnableKeyRotation: true
+        KeySpec: 'SYMMETRIC_DEFAULT'
+        PendingWindowInDays: 7
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: qldb-cmk-rotate-${self:provider.stage}
+          Statement:
+          - Sid: 'Allow administration of the key'
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::${aws:accountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          - Sid: 'Allow access to principals authorized to use Amazon QLDB'
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:DescribeKey
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
+                'kms:CallerAccount': '${aws:accountId}'
+
+    QLDBKMSDeleteKey:
+      Type: AWS::KMS::Key
+      Properties: 
+        Description: 'QLDB Ledger Delete CMK'
+        Enabled: true
+        EnableKeyRotation: true
+        KeySpec: 'SYMMETRIC_DEFAULT'
+        PendingWindowInDays: 7
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: qldb-cmk-delete-${self:provider.stage}
+          Statement:
+          - Sid: 'Allow administration of the key'
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::${aws:accountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          - Sid: 'Allow access to principals authorized to use Amazon QLDB'
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:DescribeKey
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
+                'kms:CallerAccount': '${aws:accountId}'

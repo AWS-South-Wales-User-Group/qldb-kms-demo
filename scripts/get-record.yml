@@ -1,0 +1,14 @@
+config:
+    target: "https://rs05r40x4c.execute-api.eu-west-2.amazonaws.com/demo"
+    phases:
+      - duration: 150
+        arrivalRate: 10
+    processor: "./getRecord.js"
+  
+scenarios:
+    - flow:
+        - function: "getNewRecord"
+        - get:
+            url: "/record/{{ id }}"
+        # Print the data we're sending while debugging the script:
+        - log: "Sent a request to /record with {{ id }}"
