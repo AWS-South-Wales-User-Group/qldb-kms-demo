@@ -1,6 +1,7 @@
 service: qldb-kms
 
 frameworkVersion: '2'
+configValidationMode: error
 
 provider:
   name: aws
@@ -186,3 +187,22 @@ resources:
               StringEquals:
                 'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
                 'kms:CallerAccount': '${aws:accountId}'
+
+  Outputs:
+    mainKeyID:
+      Value:
+        Ref: QLDBKMSKey
+      Export:
+        Name: mainKeyID
+
+    rotateKeyID:
+      Value:
+        Ref: QLDBKMSRotateKey
+      Export:
+        Name: rotateKeyID
+
+    deleteKeyID:
+      Value:
+        Ref: QLDBKMSDeleteKey
+      Export:
+        Name: deleteKeyID
