@@ -29,6 +29,7 @@ functions:
       - http:
           path: /record
           method: post
+    iamRoleStatementsName: qldb-kms-create-record-role
     iamRoleStatements:
       - Effect: Allow
         Action: 
@@ -38,21 +39,17 @@ functions:
       - Effect: Allow
         Action: 
           - qldb:SendCommand
-        Resource: arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
-      - Effect: Allow
-        Action: 
-          - kms:Decrypt
-        Resource:
-          - arn:aws:kms:#{AWS::Region}:#{AWS::AccountId}:alias/qldb-kms-${self:provider.stage}
+        Resource: 
+          - arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
 
-
-  getLicence:
+  getRecord:
     name: get-record-${self:provider.stage}
     handler: functions/get-record.handler
     events:
       - http:
           path: /record/{id}
           method: get
+    iamRoleStatementsName: qldb-kms-get-record-role
     iamRoleStatements:
       - Effect: Allow
         Action: 
@@ -62,13 +59,8 @@ functions:
       - Effect: Allow
         Action: 
           - qldb:SendCommand
-        Resource: arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
-      - Effect: Allow
-        Action: 
-          - kms:Decrypt
-        Resource:
-          - arn:aws:kms:#{AWS::Region}:#{AWS::AccountId}:alias/qldb-kms-${self:provider.stage}
-
+        Resource: 
+          - arn:aws:qldb:#{AWS::Region}:#{AWS::AccountId}:ledger/qldb-kms-ledger-${self:provider.stage}
 
 resources:
   Resources:
@@ -94,6 +86,9 @@ resources:
 
     QLDBKMSKey:
       Type: AWS::KMS::Key
+      DependsOn: 
+        - CreateRecordLambdaFunction
+        - GetRecordLambdaFunction
       Properties: 
         Description: 'QLDB Ledger CMK'
         Enabled: true
@@ -123,9 +118,21 @@ resources:
               StringEquals:
                 'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
                 'kms:CallerAccount': '${aws:accountId}'
+          - Sid: 'Allow access to create and get record roles'
+            Effect: Allow
+            Principal:
+              AWS: 
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-create-record-role"
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-get-record-role"
+            Action:
+              - kms:Decrypt
+            Resource: "*"
               
     QLDBKMSRotateKey:
       Type: AWS::KMS::Key
+      DependsOn: 
+        - CreateRecordLambdaFunction
+        - GetRecordLambdaFunction
       Properties: 
         Description: 'QLDB Ledger Rotate CMK'
         Enabled: true
@@ -155,9 +162,53 @@ resources:
               StringEquals:
                 'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
                 'kms:CallerAccount': '${aws:accountId}'
+          - Sid: 'Allow access to create and get record roles'
+            Effect: Allow
+            Principal:
+              AWS: 
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-create-record-role"
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-get-record-role"
+            Action:
+              - kms:Decrypt
+            Resource: "*"
+
+    QLDBKMSNoAccessKey:
+      Type: AWS::KMS::Key
+      Properties: 
+        Description: 'QLDB Ledger No Access CMK'
+        Enabled: true
+        EnableKeyRotation: true
+        KeySpec: 'SYMMETRIC_DEFAULT'
+        PendingWindowInDays: 7
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: qldb-cmk-no-access-${self:provider.stage}
+          Statement:
+          - Sid: 'Allow administration of the key'
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::${aws:accountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+          - Sid: 'Allow access to principals authorized to use Amazon QLDB'
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:DescribeKey
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
+                'kms:CallerAccount': '${aws:accountId}'
 
     QLDBKMSDeleteKey:
       Type: AWS::KMS::Key
+      DependsOn: 
+        - CreateRecordLambdaFunction
+        - GetRecordLambdaFunction
       Properties: 
         Description: 'QLDB Ledger Delete CMK'
         Enabled: true
@@ -187,6 +238,16 @@ resources:
               StringEquals:
                 'kms:ViaService': 'qldb.eu-west-2.amazonaws.com'
                 'kms:CallerAccount': '${aws:accountId}'
+          - Sid: 'Allow access to create and get record roles'
+            Effect: Allow
+            Principal:
+              AWS: 
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-create-record-role"
+                - "arn:aws:iam::${aws:accountId}:role/qldb-kms-get-record-role"
+            Action:
+              - kms:Decrypt
+            Resource: "*"
+
 
   Outputs:
     mainKeyID:
@@ -200,6 +261,12 @@ resources:
         Ref: QLDBKMSRotateKey
       Export:
         Name: rotateKeyID
+
+    noAccessKeyID:
+      Value:
+        Ref: QLDBKMSNoAccessKey
+      Export:
+        Name: noAccessKeyID
 
     deleteKeyID:
       Value:
