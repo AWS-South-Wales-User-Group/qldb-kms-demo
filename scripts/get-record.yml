@@ -1,8 +1,8 @@
 config:
-    target: "https://v0gbo1fgz3.execute-api.eu-west-2.amazonaws.com/poc/"
+    target: "https://aq1o120co1.execute-api.eu-west-2.amazonaws.com/poc"
     phases:
       - duration: 150
-        arrivalRate: 5
+        arrivalRate: 10
     processor: "./getRecord.js"
   
 scenarios:
